@@ -1,0 +1,111 @@
+@page "/communications/add"
+@rendermode InteractiveServer
+@inject UserService userService
+@inject AdminService adminService
+@inject NavigationManager navigationManager
+
+<PageTitle>Add Communication</PageTitle>
+
+<h1>Add Communication</h1>
+
+<p>This component demonstrates creating data from a service.</p>
+
+@if (unsuccessful)
+{
+    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+        <strong>Unsuccessful!</strong> Your action was incomplete.
+    </div>
+}
+@if (successful)
+{
+    <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+        <strong>Successful!</strong> Your action was complete.
+    </div>
+}
+<EditForm Model="newCommunication" OnValidSubmit="ValidSubmit">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+
+    <div class="mb-3">
+        <label>Title:</label>
+        <InputText @bind-Value="newCommunication.Title" class="form-control"/>
+    </div>
+
+    <div class="mb-3">
+        <label>Type Code:</label>
+        <select @bind="SelectCommunicationTypeCode" class="form-select">
+            <option value="">-- Select Type --</option>
+            @foreach (var communicationType in communicationTypes)
+            {
+                <option value="@communicationType.TypeCode">@communicationType.DisplayName</option>
+            }
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label>Current Status:</label>
+        <select @bind="newCommunication.CurrentStatus" disabled="@(!communicationTypeStatuses.Any())" class="form-select">
+            <option value="">-- Select Current Status --</option>
+            @foreach (var communicationTypeStatus in communicationTypeStatuses)
+            {
+                <option value="@communicationTypeStatus.StatusCode">@communicationTypeStatus.Description</option>
+            }
+        </select>
+    </div>
+
+    <button class="btn btn-primary" type="submit">Create</button>
+</EditForm>
+
+@code {
+    private CommunicationDto newCommunication = new CommunicationDto()
+    {
+        Title = "",
+        TypeCode = "",
+        CurrentStatus = ""
+    };
+
+    private List<CommunicationTypeDto> communicationTypes = [];
+    private List<CommunicationTypeStatusDto> communicationTypeStatuses = [];
+    private bool unsuccessful = false;
+    private bool successful = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        communicationTypes = await adminService.GetAllCommunicationTypes();
+    }
+
+    private string SelectCommunicationTypeCode
+    {
+        get { return newCommunication.TypeCode; }
+        set 
+        {
+            newCommunication.TypeCode = value;
+            OnChange(value);
+        }
+    }
+
+    private void OnChange(string selectCommunicationTypeCode)
+    {
+        var selectedCommunicationTypeCode = communicationTypes
+            .FirstOrDefault(communicationType => communicationType.TypeCode == selectCommunicationTypeCode);
+            
+        communicationTypeStatuses = selectedCommunicationTypeCode?.CommunicationTypeStatuses?.ToList() ?? new();
+        newCommunication.CurrentStatus = "";
+    }
+
+    private async Task ValidSubmit()
+    {
+        var success = await userService.CreateCommunication(newCommunication);
+        if (success)
+        {
+            unsuccessful = false;
+            successful = true;
+            navigationManager.NavigateTo("/communications");
+        }
+        else
+        {
+            unsuccessful = true;
+            Console.WriteLine("Failed to create communication.");
+        }
+    }
+}

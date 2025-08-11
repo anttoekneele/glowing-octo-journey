@@ -1,0 +1,86 @@
+@page "/event-simulator"
+@rendermode InteractiveServer
+@inject UserService userService
+@inject NavigationManager navigationManager
+
+<h3>Event Simulator</h3>
+
+@if (communications == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <EditForm Model="eventModel" OnValidSubmit="PublishEvent">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Select Communication:</label>
+            <select @bind="eventModel.CommunicationId" class="form-select">
+                <option value="">-- Select --</option>
+                @foreach (var comm in communications)
+                {
+                    <option value="@comm.Id">@comm.Title (@comm.TypeCode)</option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label>Select Event:</label>
+            <select @bind="selectedEvent" class="form-select">
+                <option value="">-- Select Event --</option>
+                @foreach (var evt in eventOptions)
+                {
+                    <option value="@evt">@evt</option>
+                }
+            </select>
+        </div>
+
+        <button class="btn btn-primary" type="submit" disabled="@(string.IsNullOrEmpty(selectedEvent) || eventModel.CommunicationId == Guid.Empty)">
+            Publish
+        </button>
+    </EditForm>
+
+    @if (successful)
+    {
+        <div class="alert alert-success mt-3">✅ Event published successfully.</div>
+    }
+    @if (unsuccessful)
+    {
+        <div class="alert alert-danger mt-3">❌ Failed to publish event.</div>
+    }
+}
+
+@code {
+    private List<CommunicationDto>? communications;
+    private string selectedEvent = "";
+    private bool successful = false;
+    private bool unsuccessful = false;
+
+    private CommunicationEvent eventModel = new()
+    {
+        CommunicationId = Guid.Empty,
+        TimestampUtc = DateTime.UtcNow
+    };
+
+    private readonly List<string> eventOptions = new()
+    {
+        "IdCardPrinted", "ReadyForRelease", "Released", "Shipped", "Delivered"
+        // Add more as needed
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        communications = await userService.GetAllCommunications();
+    }
+
+    private async Task PublishEvent()
+    {
+        eventModel.TimestampUtc = DateTime.UtcNow;
+
+        var result = await userService.PublishEvent(selectedEvent, eventModel);
+        successful = result;
+        unsuccessful = !result;
+    }
+}

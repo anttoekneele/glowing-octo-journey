@@ -1,0 +1,121 @@
+@page "/communications"
+@rendermode InteractiveServer
+
+@inject UserService userService
+
+<PageTitle>Communications List</PageTitle>
+
+<h1>Communications List</h1>
+
+<p>This component demonstrates fetching data from a service.</p>
+
+@if (unsuccessful)
+{
+    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+        <strong>Unsuccessful!</strong> Your action was incomplete.
+    </div>
+}
+
+@if (communications == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!communications.Any())
+{
+    <p>No communications found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Type Code</th>
+                <th>Current Status</th>
+                <th>Last Updated (UTC)</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var communication in communications.Skip((currentPage - 1) * pageSize).Take(pageSize))
+            {
+                <tr>
+                    <td>@communication.Title</td>
+                    <td>@communication.TypeCode</td>
+                    <td>@communication.CurrentStatus</td>
+                    <td>@communication.LastUpdatedUtc.ToLocalTime()</td>
+                    <td><button class="btn btn-primary" @onclick="() => OpenModal(communication.Id)">Details</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <nav>
+        <ul class="pagination">
+            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="PreviousPage">Previous</button>
+            </li>
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                <li class="page-item @(currentPage == i ? "active" : "")">
+                    <button class="page-link" @onclick="@(() => GoToPage(i))">@i</button>
+                </li>
+            }
+            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="NextPage">Next</button>
+            </li>
+        </ul>
+    </nav>
+}
+
+@if (selectedId != null)
+{
+    <CommunicationDetails Id="@selectedId.Value" OnClose="CloseModal"/>
+}
+
+@code {
+    private List<CommunicationDto>? communications;
+    private Guid? selectedId = null;
+    private bool unsuccessful = false;
+    private bool successful = false;
+    private int currentPage = 1;
+    private int pageSize = 5;
+    private int totalPages => (int)Math.Ceiling((double)(communications?.Count ?? 0) / pageSize);
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        communications = await userService.GetAllCommunications();
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+            currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < totalPages)
+            currentPage++;
+    }
+
+    private void GoToPage(int page)
+    {
+        currentPage = page;
+    }
+
+    private void OpenModal(Guid id)
+    {
+        selectedId = id;
+    }
+
+    private void CloseModal()
+    {
+        selectedId = null;
+    }
+
+    private void OnUpdate()
+    {
+        CloseModal();
+    }
+}

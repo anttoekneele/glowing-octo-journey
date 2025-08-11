@@ -1,0 +1,102 @@
+@rendermode InteractiveServer
+@inject UserService userService
+@inject AdminService adminService
+@inject NavigationManager navigationManager
+
+@if (communication == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Communication Details</h5>
+                    <button type="button" class="btn-close" @onclick="OnClose"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Title:</strong> @communication.Title</p>
+                    <p><strong>Type Code:</strong> @communication.TypeCode</p>
+                    @* <p><strong>Current Status:</strong> @communication.CurrentStatus</p> *@
+
+                    <div class="mb-3">
+                        <label><strong>Current Status:</strong></label>
+                        <select @bind="communicationTypeStatusUpdate.StatusCode" class="form-select">
+                            <option value="">-- Select Current Status --</option>
+                            @foreach (var communicationTypeStatus in communicationTypeStatuses)
+                            {
+                                <option value="@communicationTypeStatus.StatusCode">@communicationTypeStatus.Description</option>
+                            }
+                        </select>
+                    </div>
+
+                    <p><strong>Last Updated (UTC):</strong> @communication.LastUpdatedUtc.ToLocalTime()</p>
+
+                    <h6>Communication Status History</h6>
+                    <ul>
+                        @foreach (var communicationStatusHistory in communication.CommunicationStatusHistories!)
+                        {
+                            <li>
+                                @communicationStatusHistory.StatusCode - @communicationStatusHistory.OccurredUtc.ToLocalTime()
+                            </li>
+                        }
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="OnClose">Close</button>
+                    <button type="button" class="btn btn-primary" @onclick="UpdateCommunicationStatus">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+    private CommunicationDto? communication;
+    private List<CommunicationTypeStatusDto> communicationTypeStatuses = [];
+    private CommunicationTypeStatusUpdateDto communicationTypeStatusUpdate = new CommunicationTypeStatusUpdateDto()
+    {
+        StatusCode = ""
+    };
+    private bool unsuccessful = false;
+    private bool successful = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        communication = await userService.GetCommunicationById(Id);
+
+        if (communication != null)
+        {
+            var communicationTypes = await adminService.GetAllCommunicationTypes();
+            var communicationType = communicationTypes.FirstOrDefault(communicationType => communicationType.TypeCode == communication.TypeCode);
+            communicationTypeStatuses = (communicationType?.CommunicationTypeStatuses ?? Enumerable.Empty<CommunicationTypeStatusDto>()).ToList();
+            communicationTypeStatusUpdate.StatusCode = communication.CurrentStatus;
+        }
+    }
+
+    private async Task UpdateCommunicationStatus()
+    {
+        if (communication != null)
+        {
+            var success = await userService.UpdateCommunicationStatus(communication.Id, communicationTypeStatusUpdate);
+            if (success)
+            {
+                unsuccessful = false;
+                successful = true;
+                navigationManager.NavigateTo("/communications");
+            }
+            else
+            {
+                unsuccessful = true;
+                Console.WriteLine("Failed to update communication.");
+            }
+        }
+    }
+}

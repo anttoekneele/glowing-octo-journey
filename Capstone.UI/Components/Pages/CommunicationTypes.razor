@@ -1,0 +1,55 @@
+@page "/admin/types"
+@rendermode InteractiveServer
+@inject AdminService adminService
+
+<PageTitle>Communications List</PageTitle>
+
+<h1>Communication Types</h1>
+
+<p>This component demonstrates fetching data from a service.</p>
+
+@if(communicationTypes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!communicationTypes.Any())
+{
+    <p>No communication types found.</p>
+}
+else{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Type Code</th>
+                <th>Display Name</th>
+                <th>Status Code</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var communicationType in communicationTypes)
+            {
+                <tr>
+                    <td>@communicationType.TypeCode</td>
+                    <td>@communicationType.DisplayName</td>
+                    <td>
+                        <ul>
+                            @foreach (var statusCode in communicationType.CommunicationTypeStatuses){
+                                <li><strong>@statusCode.StatusCode</strong>: @statusCode.Description</li>
+                            }
+                        </ul>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CommunicationTypeDto>? communicationTypes;
+    private List<CommunicationTypeStatusDto>? communicationTypeStatuses;
+
+    protected override async Task OnInitializedAsync()
+    {
+        communicationTypes = await adminService.GetAllCommunicationTypes();
+    }
+}

@@ -1,0 +1,77 @@
+@API_HostAddress = http://localhost:5044
+
+// USER
+### Get all
+GET {{API_HostAddress}}/api/user
+
+### Get by Id
+GET {{API_HostAddress}}/api/user/ec088be3-ae22-4a72-a641-b3c010c6d898
+
+### Create
+POST {{API_HostAddress}}/api/user
+Content-Type: application/json
+
+{
+  "title": "email1",
+  "typeCode": "EMAIL",
+  "currentStatus": "SENT"
+}
+
+### Update
+POST {{API_HostAddress}}/api/user/ec088be3-ae22-4a72-a641-b3c010c6d898/status
+Content-Type: application/json
+
+{
+  "statusCode": "DRAFT"
+}
+
+// ADMIN
+### Get all
+GET {{API_HostAddress}}/api/admin
+
+### Update or Create (Update)
+POST {{API_HostAddress}}/api/admin
+Content-Type: application/json
+
+{
+  "typeCode": "EMAIL",
+  "displayName": "Email (Updated)",
+  "communicationTypeStatuses": [
+    {
+      "typeCode": "EMAIL",
+      "statusCode": "DRAFT",
+      "description": "Still in draft"
+    },
+    {
+      "typeCode": "EMAIL",
+      "statusCode": "SENT",
+      "description": "Sent to users"
+    },
+    {
+      "typeCode": "EMAIL",
+      "statusCode": "ARCHIVED",
+      "description": "Archived status"
+    }
+  ]
+}
+
+### Update or Create (Create)
+POST {{API_HostAddress}}/api/admin
+Content-Type: application/json
+
+{
+  "typeCode": "IG",
+  "displayName": "Instagram",
+  "communicationTypeStatuses": [
+    {
+      "typeCode": "IG",
+      "statusCode": "LIKED",
+      "description": "Post liked"
+    },
+    {
+      "typeCode": "IG",
+      "statusCode": "SAVE",
+      "description": "Post saved"
+    }
+  ]
+}
