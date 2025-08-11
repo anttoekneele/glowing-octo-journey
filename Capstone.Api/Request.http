@@ -60,8 +60,8 @@ POST {{API_HostAddress}}/api/admin
 Content-Type: application/json
 
 {
-  "typeCode": "IG",
-  "displayName": "Instagram",
+  "typeCode": "FB",
+  "displayName": "Facebook",
   "communicationTypeStatuses": [
     {
       "typeCode": "IG",
