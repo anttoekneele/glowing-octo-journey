@@ -2,7 +2,6 @@
 @rendermode InteractiveServer
 @inject UserService userService
 @inject AdminService adminService
-@inject NavigationManager navigationManager
 
 <PageTitle>Add Communication</PageTitle>
 
@@ -63,7 +62,6 @@
         TypeCode = "",
         CurrentStatus = ""
     };
-
     private List<CommunicationTypeDto> communicationTypes = [];
     private List<CommunicationTypeStatusDto> communicationTypeStatuses = [];
     private bool unsuccessful = false;
@@ -71,7 +69,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        communicationTypes = await adminService.GetAllCommunicationTypes();
+        communicationTypes = await userService.GetAllCommunicationTypes();
     }
 
     private string SelectCommunicationTypeCode
@@ -89,7 +87,7 @@
         var selectedCommunicationTypeCode = communicationTypes
             .FirstOrDefault(communicationType => communicationType.TypeCode == selectCommunicationTypeCode);
             
-        communicationTypeStatuses = selectedCommunicationTypeCode?.CommunicationTypeStatuses?.ToList() ?? new();
+        communicationTypeStatuses = selectedCommunicationTypeCode?.CommunicationTypeStatuses?.ToList() ?? [];
         newCommunication.CurrentStatus = "";
     }
 
@@ -100,12 +98,11 @@
         {
             unsuccessful = false;
             successful = true;
-            navigationManager.NavigateTo("/communications");
         }
         else
         {
             unsuccessful = true;
-            Console.WriteLine("Failed to create communication.");
+            successful = false;
         }
     }
 }

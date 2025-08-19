@@ -74,7 +74,7 @@ else
 
         if (communication != null)
         {
-            var communicationTypes = await adminService.GetAllCommunicationTypes();
+            var communicationTypes = await userService.GetAllCommunicationTypes();
             var communicationType = communicationTypes.FirstOrDefault(communicationType => communicationType.TypeCode == communication.TypeCode);
             communicationTypeStatuses = (communicationType?.CommunicationTypeStatuses ?? Enumerable.Empty<CommunicationTypeStatusDto>()).ToList();
             communicationTypeStatusUpdate.StatusCode = communication.CurrentStatus;

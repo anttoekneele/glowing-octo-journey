@@ -1,0 +1,199 @@
+@page "/types/manage"
+@rendermode InteractiveServer
+@inject UserService userService
+@inject AdminService adminService
+
+<PageTitle>Add/Edit Types</PageTitle>
+
+<h1>Add/Edit Types</h1>
+
+<p>This component demonstrates creating and updating data from a service</p>
+
+@if (communicationTypes == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!communicationTypes.Any())
+{
+    <p>No communication types found.</p>
+}
+else
+{
+    @if (unsuccessful)
+    {
+        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+            <strong>Unsuccessful!</strong> Your action was incomplete.
+        </div>
+    }
+    @if (successful)
+    {
+        <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+            <strong>Successful!</strong> Your action was complete.
+        </div>
+    }
+
+    <EditForm Model="newCommunicationType" OnValidSubmit="ValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label>Select Type Code:</label>
+            <select class="form-select" @bind="selectedCommunicationTypeCode" @bind:event="onchange">
+                <option value="">-- Create New Type --</option>
+                @foreach (var communicationType in communicationTypes)
+                {
+                    <option value="@communicationType.TypeCode">@communicationType.DisplayName</option>
+                }
+            </select>
+        </div>
+
+        <div class="mb-3">
+            @if (!string.IsNullOrEmpty(selectedCommunicationTypeCode))
+            {
+                <label>Update Type Code:</label>
+            }
+            else
+            {
+                <label>Create Type Code:</label>
+            }
+
+            <InputText class="form-control"
+                       @bind-Value="newCommunicationType.TypeCode"
+                       disabled="@(!string.IsNullOrEmpty(selectedCommunicationTypeCode))"
+                       placeholder="Enter type code here" />
+
+            <label>Display Name:</label>
+            <InputText class="form-control"
+                       @bind-Value="newCommunicationType.DisplayName"
+                       disabled="@(!string.IsNullOrEmpty(selectedCommunicationTypeCode))"
+                       placeholder="Enter display name here" />
+        </div>
+
+        <div class="mb-3">
+            <label>Select Status:</label>
+            @foreach (var communicationTypeStatus in allCommunicationTypeStatuses)
+            {
+                <div>
+                    <input type="checkbox"
+                           value="@communicationTypeStatus.StatusCode"
+                           checked="@selectedStatusCodes.Contains(communicationTypeStatus.StatusCode)"
+                           @onchange="(e) => OnCheckboxChanged(e, communicationTypeStatus.StatusCode)" />
+                    &nbsp;&nbsp;
+                    <label>@communicationTypeStatus.Description</label>
+                </div>
+            }
+        </div>
+
+        <button class="btn btn-primary" type="submit">Submit</button>
+    </EditForm>
+}
+
+@code {
+    private CommunicationTypeDto newCommunicationType = new CommunicationTypeDto
+    {
+        TypeCode = "",
+        DisplayName = ""
+    };
+
+    private List<CommunicationTypeDto> communicationTypes = [];
+    private List<CommunicationTypeStatusDto> allCommunicationTypeStatuses = [];
+    private List<CommunicationTypeStatusDto> communicationTypeStatuses = [];
+    private List<string> selectedStatusCodes = [];
+
+    private string selectedCommunicationTypeCodeBacking = "";
+    private string selectedCommunicationTypeCode
+    {
+        get => selectedCommunicationTypeCodeBacking;
+        set
+        {
+            if (selectedCommunicationTypeCodeBacking != value)
+            {
+                selectedCommunicationTypeCodeBacking = value;
+                OnSelectionChanged(value);
+            }
+        }
+    }
+
+    private bool unsuccessful = false;
+    private bool successful = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        communicationTypes = await userService.GetAllCommunicationTypes();
+
+        allCommunicationTypeStatuses = communicationTypes
+            .SelectMany(ct => ct.CommunicationTypeStatuses ?? [])
+            .DistinctBy(s => s.StatusCode) // prevents duplicate checkboxes
+            .ToList();
+    }
+
+    private void OnSelectionChanged(string selectedCode)
+    {
+        if (string.IsNullOrEmpty(selectedCode))
+        {
+            selectedCommunicationTypeCodeBacking = "";
+
+            newCommunicationType = new CommunicationTypeDto
+            {
+                TypeCode = "",
+                DisplayName = ""
+            };
+            communicationTypeStatuses.Clear();
+            selectedStatusCodes.Clear();
+        }
+        else
+        {
+            var selectedType = communicationTypes.FirstOrDefault(c => c.TypeCode == selectedCode);
+            if (selectedType != null)
+            {
+                newCommunicationType = new CommunicationTypeDto
+                {
+                    TypeCode = selectedType.TypeCode,
+                    DisplayName = selectedType.DisplayName,
+                    CommunicationTypeStatuses = selectedType.CommunicationTypeStatuses
+                };
+
+                communicationTypeStatuses = selectedType.CommunicationTypeStatuses?.ToList() ?? new();
+                selectedStatusCodes = communicationTypeStatuses.Select(s => s.StatusCode).ToList();
+            }
+        }
+
+        StateHasChanged(); // Ensures UI refreshes immediately
+    }
+
+    private void OnCheckboxChanged(ChangeEventArgs e, string statusCode)
+    {
+        if ((bool)e.Value)
+        {
+            if (!selectedStatusCodes.Contains(statusCode))
+                selectedStatusCodes.Add(statusCode);
+        }
+        else
+        {
+            selectedStatusCodes.Remove(statusCode);
+        }
+    }
+
+    private async Task ValidSubmit()
+    {
+        newCommunicationType.CommunicationTypeStatuses = selectedStatusCodes
+            .Select(statusCode => new CommunicationTypeStatusDto
+            {
+                TypeCode = newCommunicationType.TypeCode,
+                StatusCode = statusCode,
+                Description = allCommunicationTypeStatuses.FirstOrDefault(s => s.StatusCode == statusCode)?.Description ?? ""
+            })
+            .ToList();
+
+        if (string.IsNullOrEmpty(selectedCommunicationTypeCode))
+        {
+            successful = await adminService.CreateCommunicationType(newCommunicationType);
+        }
+        else
+        {
+            successful = await adminService.UpdateCommunicationType(selectedCommunicationTypeCode, newCommunicationType);
+        }
+
+        unsuccessful = !successful;
+    }
+}

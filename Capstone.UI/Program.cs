@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.IdentityModel.Tokens;
 using Okta.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,19 +13,41 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
+})
+.AddCookie()
+.AddOpenIdConnect("OpenIdConnect", options =>
+{
+    options.Authority = builder.Configuration["Okta:OktaDomain"] + "/oauth2/" + builder.Configuration["Okta:AuthorizationServerId"];
+    options.ClientId = builder.Configuration["Okta:ClientId"];
+    options.ClientSecret = builder.Configuration["Okta:ClientSecret"];
+    options.ResponseType = "code";
+    options.SaveTokens = true;
+
+    options.Scope.Add("openid");
+    options.Scope.Add("profile");
+    options.Scope.Add("email");
+
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
-    })
-    .AddCookie()
-    .AddOktaMvc(new OktaMvcOptions
+        NameClaimType = "name",
+        RoleClaimType = "groups"
+    };
+
+    options.Events = new OpenIdConnectEvents
     {
-        // Replace the Okta placeholders in appsettings.json with your Okta configuration.
-        OktaDomain = builder.Configuration.GetValue<string>("Okta:OktaDomain"),
-        ClientId = builder.Configuration.GetValue<string>("Okta:ClientId"),
-        ClientSecret = builder.Configuration.GetValue<string>("Okta:ClientSecret"),
-        AuthorizationServerId = builder.Configuration.GetValue<string>("Okta:AuthorizationServerId"),
-    });
+        OnTokenValidated = ctx =>
+        {
+            var accessToken = ctx.SecurityToken.RawData;
+            Console.WriteLine("ACCESS TOKEN: " + accessToken);
+
+            return Task.CompletedTask;
+        }
+    };
+});
+builder.Services.AddAuthorization();
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AdminService>();
@@ -38,6 +61,7 @@ builder.Services.AddHttpClient("Api", (serviceProvider, client) =>
 
     client.BaseAddress = new Uri(baseAddress);
 });
+builder.Services.AddHttpContextAccessor();
 
 var app = builder.Build();
 

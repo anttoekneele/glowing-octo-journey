@@ -170,3 +170,4 @@
 /Users/yorkmacbook088/Desktop/Capstone/Capstone.Api/obj/Debug/net9.0/Capstone.Api.pdb
 /Users/yorkmacbook088/Desktop/Capstone/Capstone.Api/obj/Debug/net9.0/Capstone.Api.genruntimeconfig.cache
 /Users/yorkmacbook088/Desktop/Capstone/Capstone.Api/obj/Debug/net9.0/ref/Capstone.Api.dll
+/Users/yorkmacbook088/Desktop/Capstone/Capstone.Api/obj/Debug/net9.0/Capstone.Api.sourcelink.json

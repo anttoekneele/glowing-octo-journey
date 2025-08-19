@@ -4,4 +4,5 @@ public interface IUserService
     Task<IEnumerable<CommunicationDto>> GetAllCommunications();
     Task<CommunicationDto?> GetCommunicationById(Guid id);
     Task<bool> UpdateCommunicationStatus(Guid id, CommunicationTypeStatusUpdateDto communicationTypeStatusUpdateDto);
+    Task<IEnumerable<CommunicationTypeDto>> GetAllCommunicationTypes();
 }

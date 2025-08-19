@@ -1,11 +1,7 @@
 @API_HostAddress = http://localhost:5044
 
-// USER
-### Get all
-GET {{API_HostAddress}}/api/user
 
-### Get by Id
-GET {{API_HostAddress}}/api/user/ec088be3-ae22-4a72-a641-b3c010c6d898
+// USER
 
 ### Create
 POST {{API_HostAddress}}/api/user
@@ -17,61 +13,64 @@ Content-Type: application/json
   "currentStatus": "SENT"
 }
 
+### Get all
+GET {{API_HostAddress}}/api/user/communications
+
+### Get by Id
+GET {{API_HostAddress}}/api/user/c42cc59d-8133-4335-97a0-042918a068ad
+
 ### Update
-POST {{API_HostAddress}}/api/user/ec088be3-ae22-4a72-a641-b3c010c6d898/status
+POST {{API_HostAddress}}/api/user/c42cc59d-8133-4335-97a0-042918a068ad/status
 Content-Type: application/json
 
 {
   "statusCode": "DRAFT"
 }
 
-// ADMIN
 ### Get all
-GET {{API_HostAddress}}/api/admin
+GET {{API_HostAddress}}/api/user/types
 
-### Update or Create (Update)
+
+// ADMIN
+
+### Create
 POST {{API_HostAddress}}/api/admin
 Content-Type: application/json
 
 {
-  "typeCode": "EMAIL",
-  "displayName": "Email (Updated)",
+  "typeCode": "SC",
+  "displayName": "Snap Chat",
   "communicationTypeStatuses": [
     {
-      "typeCode": "EMAIL",
-      "statusCode": "DRAFT",
-      "description": "Still in draft"
-    },
-    {
-      "typeCode": "EMAIL",
+      "typeCode": "SC",
       "statusCode": "SENT",
-      "description": "Sent to users"
+      "description": "Sent"
     },
     {
-      "typeCode": "EMAIL",
-      "statusCode": "ARCHIVED",
-      "description": "Archived status"
+      "typeCode": "SC",
+      "statusCode": "OPENED",
+      "description": "Opened"
     }
   ]
 }
 
-### Update or Create (Create)
-POST {{API_HostAddress}}/api/admin
+### Update
+POST {{API_HostAddress}}/api/admin/SC
 Content-Type: application/json
 
 {
-  "typeCode": "FB",
-  "displayName": "Facebook",
+  "typeCode": "SC",
+  "displayName": "Snap Chat",
   "communicationTypeStatuses": [
     {
-      "typeCode": "IG",
-      "statusCode": "LIKED",
-      "description": "Post liked"
+      "typeCode": "SC",
+      "statusCode": "SENT",
+      "description": "Sent"
     },
     {
-      "typeCode": "IG",
-      "statusCode": "SAVE",
-      "description": "Post saved"
+      "typeCode": "SC",
+      "statusCode": "CLOSED",
+      "description": "Closed"
     }
   ]
 }

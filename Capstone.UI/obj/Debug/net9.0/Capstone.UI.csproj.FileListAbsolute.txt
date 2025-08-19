@@ -111,3 +111,4 @@
 /Users/yorkmacbook088/Desktop/Capstone/Capstone.UI/bin/Debug/net9.0/System.Net.ServerSentEvents.dll
 /Users/yorkmacbook088/Desktop/Capstone/Capstone.UI/bin/Debug/net9.0/System.Threading.Channels.dll
 /Users/yorkmacbook088/Desktop/Capstone/Capstone.UI/obj/Debug/net9.0/Capstone.5D7B80E3.Up2Date
+/Users/yorkmacbook088/Desktop/Capstone/Capstone.UI/obj/Debug/net9.0/Capstone.UI.sourcelink.json

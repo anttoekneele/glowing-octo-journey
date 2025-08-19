@@ -17,7 +17,7 @@ public class UserService
 
     public async Task<List<CommunicationDto>> GetAllCommunications()
     {
-        return await _http.GetFromJsonAsync<List<CommunicationDto>>("user") ?? [];
+        return await _http.GetFromJsonAsync<List<CommunicationDto>>("user/communications") ?? [];
     }
 
     public async Task<CommunicationDto?> GetCommunicationById(Guid id)
@@ -29,6 +29,11 @@ public class UserService
     {
         var response = await _http.PostAsJsonAsync($"user/{id}/status", communicationTypeStatusUpdateDto);
         return response.IsSuccessStatusCode;
+    }
+
+    public async Task<List<CommunicationTypeDto>> GetAllCommunicationTypes()
+    {
+        return await _http.GetFromJsonAsync<List<CommunicationTypeDto>>("user/types") ?? [];
     }
 
     public async Task<bool> PublishEvent(string eventName, CommunicationEvent eventData)

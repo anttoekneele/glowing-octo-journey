@@ -12,22 +12,21 @@ public class UserController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<CommunicationDto>> Create([FromBody] CommunicationDto communicationDto)
+    public async Task<ActionResult<CommunicationDto>> CreateCommunication([FromBody] CommunicationDto communicationDto)
     {
         var communication = await _userService.CreateCommunication(communicationDto);
-
-        return CreatedAtAction(nameof(Get), new { id = communication.Id }, communication);
+        return CreatedAtAction(nameof(GetCommunicationById), new { id = communication.Id }, communication);
     }
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<CommunicationDto>>> GetAll()
+    [HttpGet("communications")]
+    public async Task<ActionResult<IEnumerable<CommunicationDto>>> GetAllCommunications()
     {
         var communications = await _userService.GetAllCommunications();
         return Ok(communications);
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<CommunicationDto>> Get(Guid id)
+    public async Task<ActionResult<CommunicationDto>> GetCommunicationById(Guid id)
     {
         var communication = await _userService.GetCommunicationById(id);
         if (communication == null)
@@ -38,7 +37,7 @@ public class UserController : ControllerBase
     }
 
     [HttpPost("{id}/status")]
-    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] CommunicationTypeStatusUpdateDto communicationTypeStatusUpdateDto)
+    public async Task<IActionResult> UpdateCommunicationStatus(Guid id, [FromBody] CommunicationTypeStatusUpdateDto communicationTypeStatusUpdateDto)
     {
         var updated = await _userService.UpdateCommunicationStatus(id, communicationTypeStatusUpdateDto);
         if (!updated)
@@ -46,5 +45,12 @@ public class UserController : ControllerBase
             return BadRequest("Invalid status update or communication not found.");
         }
         return NoContent();
+    }
+
+    [HttpGet("types")]
+    public async Task<ActionResult<IEnumerable<CommunicationTypeDto>>> GetAllCommunicationTypes()
+    {
+        var communicationTypes = await _userService.GetAllCommunicationTypes();
+        return Ok(communicationTypes);
     }
 }

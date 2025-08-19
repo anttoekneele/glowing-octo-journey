@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Capstone.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,6 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("AppDbContext")));
-builder.Services.AddHttpClient<IUserService, UserService>();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<RabbitMqPublisher>();
 builder.Services.AddHostedService<RabbitMqListenerService>();
@@ -29,6 +30,18 @@ builder.Services.AddHttpClient<IUserService, UserService>(client =>
 {
     client.BaseAddress = new Uri("http://localhost:5044/");
 });
+builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddAuthentication()
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+    {
+        options.Authority = builder.Configuration["Okta:OktaDomain"] + "/oauth2/" + builder.Configuration["Okta:AuthorizationServerId"];;
+        options.Audience = builder.Configuration["Okta:Audience"];
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            RoleClaimType = "groups"
+        };
+    });
+builder.Services.AddAuthorization();
 
 
 var app = builder.Build();

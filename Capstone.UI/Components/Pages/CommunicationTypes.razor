@@ -1,6 +1,6 @@
-@page "/admin/types"
+@page "/types"
 @rendermode InteractiveServer
-@inject AdminService adminService
+@inject UserService userService
 
 <PageTitle>Communications List</PageTitle>
 
@@ -50,6 +50,6 @@ else{
 
     protected override async Task OnInitializedAsync()
     {
-        communicationTypes = await adminService.GetAllCommunicationTypes();
+        communicationTypes = await userService.GetAllCommunicationTypes();
     }
 }

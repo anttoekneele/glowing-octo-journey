@@ -1,94 +1,42 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/admin")]
 public class AdminController : ControllerBase
 {
-    private readonly AppDbContext _appDbContext;
-    public AdminController(AppDbContext appDbContext) => _appDbContext = appDbContext;
+    private readonly IAdminService _adminService;
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<CommunicationTypeDto>>> GetTypes()
+    public AdminController(IAdminService adminService)
     {
-        var communicationTypes = await _appDbContext.CommunicationTypes
-            .Include(communicationType => communicationType.CommunicationTypeStatuses)
-            .ToListAsync();
-
-        var response = communicationTypes.Select(communicationType => new CommunicationTypeDto
-        {
-            TypeCode = communicationType.TypeCode,
-            DisplayName = communicationType.DisplayName,
-            CommunicationTypeStatuses = communicationType.CommunicationTypeStatuses?.Select(communicationTypeStatus => new CommunicationTypeStatusDto
-            {
-                TypeCode = communicationTypeStatus.TypeCode,
-                StatusCode = communicationTypeStatus.StatusCode,
-                Description = communicationTypeStatus.Description
-            }).ToList()
-        });
-
-        return Ok(response);
+        _adminService = adminService;
     }
 
-    // [HttpGet]
-    // public async Task<ActionResult<IEnumerable<CommunicationTypeStatusDto>>> GetStatuses()
-    // {
-    //     var communicationTypeStatuses = await _appDbContext.CommunicationTypeStatuses
-    //     .Include(communicationTypeStatus => communicationTypeStatus.CommunicationType)
-    //     .ToListAsync();
-
-    //     var response = communicationTypeStatuses.Select(communicationTypeStatus => new CommunicationTypeStatusDto
-    //     {
-
-    //     });
-    // }
-
+    [Authorize(Roles = "Admin")]
     [HttpPost]
-    public async Task<IActionResult> CreateOrUpdateType([FromBody] CommunicationTypeDto communicationTypeDto)
+    public async Task<ActionResult<CommunicationTypeDto>> CreateCommunicationType([FromBody] CommunicationTypeDto communicationTypeDto)
     {
-        if (communicationTypeDto.TypeCode is null || communicationTypeDto.CommunicationTypeStatuses is null)
+        if (communicationTypeDto.TypeCode == "" || !communicationTypeDto.CommunicationTypeStatuses.Any())
         {
             return BadRequest("Invalid communication type data.");
         }
-        var communicationType = await _appDbContext.CommunicationTypes
-            .Include(communicationType => communicationType.CommunicationTypeStatuses)
-            .FirstOrDefaultAsync(communicationType => communicationType.TypeCode == communicationTypeDto.TypeCode);
+        var communicationType = await _adminService.CreateCommunicationType(communicationTypeDto);
+        return NoContent();
+    }
 
-        if (communicationType!= null)
+    [Authorize(Roles = "Admin")]
+    [HttpPost("{typeCode}")]
+    public async Task<IActionResult> UpdateCommunicationType(string typeCode, [FromBody] CommunicationTypeDto communicationTypeDto)
+    {
+        if (communicationTypeDto.TypeCode == "" || !communicationTypeDto.CommunicationTypeStatuses.Any())
         {
-            communicationType.DisplayName = communicationTypeDto.DisplayName;
-
-            if (communicationType.CommunicationTypeStatuses != null && communicationType.CommunicationTypeStatuses.Any())
-            {
-                _appDbContext.CommunicationTypeStatuses.RemoveRange(communicationType.CommunicationTypeStatuses);
-            }
-
-            communicationType.CommunicationTypeStatuses = communicationTypeDto.CommunicationTypeStatuses.Select(communicationTypeStatus => new CommunicationTypeStatus
-            {
-                TypeCode = communicationTypeDto.TypeCode,
-                StatusCode = communicationTypeStatus.StatusCode,
-                Description = communicationTypeStatus.Description
-            }).ToList();
+            return BadRequest("Invalid communication type data.");
         }
-        else
+        var updated = await _adminService.UpdateCommunicationType(typeCode, communicationTypeDto);
+        if (!updated)
         {
-            var newCommunicationType = new CommunicationType
-            {
-                TypeCode = communicationTypeDto.TypeCode,
-                DisplayName = communicationTypeDto.DisplayName,
-                CommunicationTypeStatuses = communicationTypeDto.CommunicationTypeStatuses.Select(communicationTypeStatus => new CommunicationTypeStatus
-                {
-                    TypeCode = communicationTypeDto.TypeCode,
-                    StatusCode = communicationTypeStatus.StatusCode,
-                    Description = communicationTypeStatus.Description
-                }).ToList()
-            };
-
-            _appDbContext.CommunicationTypes.Add(newCommunicationType);
+            return BadRequest("Invalid type update or type not found.");
         }
-
-        await _appDbContext.SaveChangesAsync();
-
-        return Ok();
+        return NoContent();
     }
 }

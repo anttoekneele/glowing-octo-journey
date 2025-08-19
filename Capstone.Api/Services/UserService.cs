@@ -8,7 +8,6 @@ public class UserService : IUserService
     private readonly AppDbContext _appDbContext;
     private readonly HttpClient _http;
 
-
     public UserService(AppDbContext appDbContext, HttpClient http)
     {
         _appDbContext = appDbContext;
@@ -19,17 +18,17 @@ public class UserService : IUserService
     {
         var typeCodeExist = await _appDbContext.CommunicationTypes
             .AnyAsync(communicationType => communicationType.TypeCode == communicationDto.TypeCode);
-
         if (!typeCodeExist)
         {
             throw new ArgumentException("Invalid TypeCode.");
         }
 
-        var validStatusCode = await _appDbContext.CommunicationTypeStatuses
+        var statusCodeIsValid = await _appDbContext.CommunicationTypeStatuses
             .AnyAsync(communicationTypeStatus => communicationTypeStatus.TypeCode == communicationDto.TypeCode && communicationTypeStatus.StatusCode == communicationDto.CurrentStatus);
-
-        if (!validStatusCode)
+        if (!statusCodeIsValid)
+        {
             throw new ArgumentException("Invalid initial status for this communication type.");
+        }
 
         var communication = new Communication
         {
@@ -39,7 +38,6 @@ public class UserService : IUserService
             CurrentStatus = communicationDto.CurrentStatus,
             LastUpdatedUtc = DateTime.UtcNow
         };
-
         _appDbContext.Communications.Add(communication);
 
         var communicationStatusHistory = new CommunicationStatusHistory
@@ -49,12 +47,10 @@ public class UserService : IUserService
             StatusCode = communication.CurrentStatus,
             OccurredUtc = communication.LastUpdatedUtc
         };
-
         _appDbContext.CommunicationStatusHistories.Add(communicationStatusHistory);
 
         await _appDbContext.SaveChangesAsync();
-
-        return MapToDto(communication);
+        return MapToCommunicationDto(communication);
     }
 
     public async Task<IEnumerable<CommunicationDto>> GetAllCommunications()
@@ -63,8 +59,7 @@ public class UserService : IUserService
             .Include(communication => communication.CommunicationType)
             .Include(communication => communication.CommunicationStatusHistories)
             .ToListAsync();
-
-        return communications.Select(MapToDto).ToList();
+        return communications.Select(MapToCommunicationDto).ToList();
     }
 
     public async Task<CommunicationDto?> GetCommunicationById(Guid id)
@@ -73,36 +68,30 @@ public class UserService : IUserService
             .Include(communication => communication.CommunicationType)
             .Include(communication => communication.CommunicationStatusHistories)
             .FirstOrDefaultAsync(communication => communication.Id == id);
-
         if (communication == null)
         {
             return null;
         }
-
-        return MapToDto(communication);
+        return MapToCommunicationDto(communication);
     }
 
     public async Task<bool> UpdateCommunicationStatus(Guid id, CommunicationTypeStatusUpdateDto communicationTypeStatusUpdateDto)
     {
         var communication = await _appDbContext.Communications.FindAsync(id);
-
         if (communication == null)
         {
             return false;
         }
 
-        var validStatusCode = await _appDbContext.CommunicationTypeStatuses
+        var statusCodeIsValid = await _appDbContext.CommunicationTypeStatuses
             .AnyAsync(communicationTypeStatus => communicationTypeStatus.TypeCode == communication.TypeCode && communicationTypeStatus.StatusCode == communicationTypeStatusUpdateDto.StatusCode);
-
-        if (!validStatusCode)
+        if (!statusCodeIsValid)
         {
             throw new ArgumentException("Invalid status for this communication type.");
         }
 
         communication.CurrentStatus = communicationTypeStatusUpdateDto.StatusCode;
-
         communication.LastUpdatedUtc = DateTime.UtcNow;
-
         var communicationStatusHistory = new CommunicationStatusHistory
         {
             Id = Guid.NewGuid(),
@@ -110,15 +99,22 @@ public class UserService : IUserService
             StatusCode = communicationTypeStatusUpdateDto.StatusCode,
             OccurredUtc = communication.LastUpdatedUtc
         };
-
         _appDbContext.CommunicationStatusHistories.Add(communicationStatusHistory);
 
         await _appDbContext.SaveChangesAsync();
-
         return true;
     }
 
-    private CommunicationDto MapToDto(Communication communication)
+    public async Task<IEnumerable<CommunicationTypeDto>> GetAllCommunicationTypes()
+    {
+        var communicationTypes = await _appDbContext.CommunicationTypes
+            .Include(communicationType => communicationType.Communications)
+            .Include(communicationType => communicationType.CommunicationTypeStatuses)
+            .ToListAsync();
+        return communicationTypes.Select(MapToCommunicationTypeDto).ToList();
+    }
+
+    private CommunicationDto MapToCommunicationDto(Communication communication)
     {
         var response = new CommunicationDto
         {
@@ -127,7 +123,7 @@ public class UserService : IUserService
             TypeCode = communication.TypeCode,
             CurrentStatus = communication.CurrentStatus,
             LastUpdatedUtc = communication.LastUpdatedUtc,
-            CommunicationType = communication.CommunicationType is null ? null : new CommunicationTypeDto
+            CommunicationType = communication.CommunicationType == null ? null : new CommunicationTypeDto
             {
                 TypeCode = communication.CommunicationType.TypeCode,
                 DisplayName = communication.CommunicationType.DisplayName
@@ -138,7 +134,22 @@ public class UserService : IUserService
                 OccurredUtc = communicationStatusHistory.OccurredUtc
             }).ToList()
         };
+        return response;
+    }
 
+    private CommunicationTypeDto MapToCommunicationTypeDto(CommunicationType communicationType)
+    {
+        var response = new CommunicationTypeDto
+        {
+            TypeCode = communicationType.TypeCode,
+            DisplayName = communicationType.DisplayName,
+            CommunicationTypeStatuses = communicationType.CommunicationTypeStatuses?.Select(communicationTypeStatus => new CommunicationTypeStatusDto
+            {
+                TypeCode = communicationTypeStatus.TypeCode,
+                StatusCode = communicationTypeStatus.StatusCode,
+                Description = communicationTypeStatus.Description
+            }).ToList()
+        };
         return response;
     }
 
