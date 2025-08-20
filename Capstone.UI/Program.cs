@@ -51,6 +51,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<AdminService>();
+builder.Services.AddScoped<EventService>();
 builder.Services.AddHttpClient("Api", (serviceProvider, client) =>
 {
     var configuration = serviceProvider.GetRequiredService<IConfiguration>();

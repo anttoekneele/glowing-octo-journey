@@ -1,24 +1,27 @@
-@page "/event-simulator"
+@page "/eventSimulator"
 @rendermode InteractiveServer
 @inject UserService userService
-@inject NavigationManager navigationManager
+@inject EventService eventService
+@using System.ComponentModel.DataAnnotations
+
+<PageTitle>Event Simulator</PageTitle>
 
 <h3>Event Simulator</h3>
 
-@if (communications == null)
+@if (hasLoadError)
 {
-    <p><em>Loading...</em></p>
+    <div class="alert alert-danger">❌ Failed to load communications.</div>
 }
 else
 {
-    <EditForm Model="eventModel" OnValidSubmit="PublishEvent">
+    <EditForm Model="@simEvent" OnValidSubmit="PublishEvent">
         <DataAnnotationsValidator />
         <ValidationSummary />
 
-        <div class="mb-3">
-            <label>Select Communication:</label>
-            <select @bind="eventModel.CommunicationId" class="form-select">
-                <option value="">-- Select --</option>
+        <div class="form-group">
+            <label>Communication</label>
+            <select @onchange="OnCommunicationChanged" class="form-control" required>
+                <option value="">-- select communication --</option>
                 @foreach (var comm in communications)
                 {
                     <option value="@comm.Id">@comm.Title (@comm.TypeCode)</option>
@@ -26,61 +29,99 @@ else
             </select>
         </div>
 
-        <div class="mb-3">
-            <label>Select Event:</label>
-            <select @bind="selectedEvent" class="form-select">
-                <option value="">-- Select Event --</option>
-                @foreach (var evt in eventOptions)
+        <div class="form-group mt-2">
+            <label>Event Type</label>
+            <InputSelect @bind-Value="simEvent.EventType" class="form-control" disabled="@(!availableEvents.Any())">
+                <option value="">-- select event type --</option>
+                @foreach (var evt in availableEvents)
                 {
                     <option value="@evt">@evt</option>
                 }
-            </select>
+            </InputSelect>
         </div>
 
-        <button class="btn btn-primary" type="submit" disabled="@(string.IsNullOrEmpty(selectedEvent) || eventModel.CommunicationId == Guid.Empty)">
-            Publish
-        </button>
+        <button type="submit" class="btn btn-primary mt-3" disabled="@(!availableEvents.Any())">Publish</button>
     </EditForm>
 
-    @if (successful)
+    @if (!string.IsNullOrEmpty(publishResult))
     {
-        <div class="alert alert-success mt-3">✅ Event published successfully.</div>
-    }
-    @if (unsuccessful)
-    {
-        <div class="alert alert-danger mt-3">❌ Failed to publish event.</div>
+        <p class="mt-2 text-success">✅ @publishResult</p>
     }
 }
 
 @code {
-    private List<CommunicationDto>? communications;
-    private string selectedEvent = "";
-    private bool successful = false;
-    private bool unsuccessful = false;
-
-    private CommunicationEvent eventModel = new()
-    {
-        CommunicationId = Guid.Empty,
-        TimestampUtc = DateTime.UtcNow
-    };
-
-    private readonly List<string> eventOptions = new()
-    {
-        "IdCardPrinted", "ReadyForRelease", "Released", "Shipped", "Delivered"
-        // Add more as needed
-    };
+    private List<CommunicationDto> communications = new();
+    private List<string> availableEvents = new();
+    private SimEvent simEvent = new();
+    private string? publishResult;
+    private bool hasLoadError = false;
 
     protected override async Task OnInitializedAsync()
     {
-        communications = await userService.GetAllCommunications();
+        try
+        {
+            communications = await userService.GetAllCommunications();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"❌ Error loading communications: {ex.Message}");
+            hasLoadError = true;
+        }
+    }
+
+    private async Task OnCommunicationChanged(ChangeEventArgs e)
+    {
+        simEvent.CommunicationId = e.Value?.ToString() ?? "";
+        simEvent.EventType = string.Empty; // reset selection
+        publishResult = null;
+        availableEvents.Clear();
+
+        if (Guid.TryParse(simEvent.CommunicationId, out var guid))
+        {
+            try
+            {
+                var communication = await userService.GetCommunicationById(guid);
+                var communicationTypes = await userService.GetAllCommunicationTypes();
+                var communicationType = communicationTypes
+                    .FirstOrDefault(t => t.TypeCode == communication?.TypeCode);
+
+                availableEvents = (communicationType?.CommunicationTypeStatuses ?? Enumerable.Empty<CommunicationTypeStatusDto>())
+                    .Select(s => s.StatusCode)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"❌ Error loading events: {ex.Message}");
+            }
+        }
     }
 
     private async Task PublishEvent()
     {
-        eventModel.TimestampUtc = DateTime.UtcNow;
+        try
+        {
+            var evt = new EventPayloadDto
+            {
+                CommunicationId = simEvent.CommunicationId,
+                TimestampUtc = DateTime.UtcNow
+            };
 
-        var result = await userService.PublishEvent(selectedEvent, eventModel);
-        successful = result;
-        unsuccessful = !result;
+            await eventService.PublishAsync(simEvent.EventType, evt);
+            publishResult = $"Event '{simEvent.EventType}' published successfully!";
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"❌ Failed to publish event: {ex.Message}");
+            publishResult = "⚠️ Failed to publish event.";
+        }
+    }
+
+    private class SimEvent
+    {
+        [Required]
+        public string CommunicationId { get; set; } = string.Empty;
+
+        [Required]
+        public string EventType { get; set; } = string.Empty;
     }
 }

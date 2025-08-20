@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Capstone.Api.Contracts;
 using System.Net.Http;
 using System.Net.Http.Json;
 
@@ -151,11 +150,5 @@ public class UserService : IUserService
             }).ToList()
         };
         return response;
-    }
-
-    public async Task<bool> PublishEvent(string eventName, CommunicationEvent communicationEvent)
-    {
-        var response = await _http.PostAsJsonAsync($"events/{eventName}", communicationEvent);
-        return response.IsSuccessStatusCode;
     }
 }

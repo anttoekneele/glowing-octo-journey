@@ -1,5 +1,3 @@
-using Capstone.Api.Contracts;
-
 public class UserService
 {
     private readonly HttpClient _http;
@@ -34,11 +32,5 @@ public class UserService
     public async Task<List<CommunicationTypeDto>> GetAllCommunicationTypes()
     {
         return await _http.GetFromJsonAsync<List<CommunicationTypeDto>>("user/types") ?? [];
-    }
-
-    public async Task<bool> PublishEvent(string eventName, CommunicationEvent eventData)
-    {
-        var response = await _http.PostAsJsonAsync($"user/publish/{eventName}", eventData);
-        return response.IsSuccessStatusCode;
     }
 }

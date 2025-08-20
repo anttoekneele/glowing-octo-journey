@@ -1,104 +1,66 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
 
-public class RabbitMqListenerService : BackgroundService
+public class LifecycleEventConsumer : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<RabbitMqListenerService> _logger;
-    private IConnection? _connection;
-    private IModel? _channel;
+    private readonly IConnection _connection;
+    private readonly IServiceScopeFactory _scopeFactory;
 
-    public RabbitMqListenerService(IServiceProvider serviceProvider, ILogger<RabbitMqListenerService> logger)
+    public LifecycleEventConsumer(IConnection connection, IServiceScopeFactory scopeFactory)
     {
-        _serviceProvider = serviceProvider;
-        _logger = logger;
-
-        var factory = new ConnectionFactory
-        {
-            HostName = "localhost", // or "rabbitmq" if using Docker service name
-            UserName = "guest",
-            Password = "guest"
-        };
-
-        _connection = factory.CreateConnection();
-        _channel = _connection.CreateModel();
-
-        _channel.ExchangeDeclare(exchange: "communication_events", type: ExchangeType.Topic, durable: true);
-
-        _channel.QueueDeclare(queue: "communication_api_queue",
-                             durable: true,
-                             exclusive: false,
-                             autoDelete: false,
-                             arguments: null);
-
-        _channel.QueueBind(queue: "communication_api_queue",
-                          exchange: "communication_events",
-                          routingKey: "#");
+        _connection = connection;
+        _scopeFactory = scopeFactory;
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var consumer = new EventingBasicConsumer(_channel);
+        var channel = _connection.CreateModel();
+        channel.ExchangeDeclare("comm-lifecycle", ExchangeType.Topic, durable: true);
+        var queue = channel.QueueDeclare().QueueName;
 
+        channel.QueueBind(queue, "comm-lifecycle", "#");
+
+        var consumer = new EventingBasicConsumer(channel);
         consumer.Received += async (model, ea) =>
         {
-            var routingKey = ea.RoutingKey;
             var body = ea.Body.ToArray();
-            var message = Encoding.UTF8.GetString(body);
+            var json = Encoding.UTF8.GetString(body);
+            var eventType = ea.RoutingKey;
+            var payload = JsonSerializer.Deserialize<EventPayloadDto>(json);
 
-            _logger.LogInformation($"Received message: {routingKey} -> {message}");
-
-            try
+            if (payload == null)
             {
-                var payload = JsonSerializer.Deserialize<CommunicationEventMessage>(message);
+                return;
+            }
 
-                if (payload is not null)
+            if (!Guid.TryParse(payload.CommunicationId, out var communicationGuid))
+            {
+                return;
+            }
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var comm = await db.Communications.FindAsync(communicationGuid);
+            if (comm != null)
+            {
+                comm.CurrentStatus = eventType;
+                comm.LastUpdatedUtc = payload.TimestampUtc;
+
+                db.CommunicationStatusHistories.Add(new CommunicationStatusHistory
                 {
-                    using var scope = _serviceProvider.CreateScope();
-                    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                    CommunicationId = comm.Id,
+                    StatusCode = eventType,
+                    OccurredUtc = payload.TimestampUtc
+                });
 
-                    var communication = await db.Communications.FindAsync(Guid.Parse(payload.CommunicationId));
-                    if (communication != null)
-                    {
-                        communication.CurrentStatus = routingKey;
-                        communication.LastUpdatedUtc = DateTime.UtcNow;
-
-                        db.CommunicationStatusHistories.Add(new CommunicationStatusHistory
-                        {
-                            Id = Guid.NewGuid(),
-                            CommunicationId = communication.Id,
-                            StatusCode = routingKey,
-                            OccurredUtc = DateTime.UtcNow
-                        });
-
-                        await db.SaveChangesAsync();
-                    }
-                }
+                await db.SaveChangesAsync();
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing message.");
-            }
-
-            _channel.BasicAck(ea.DeliveryTag, multiple: false);
         };
 
-        _channel.BasicConsume(queue: "communication_api_queue",
-                              autoAck: false,
-                              consumer: consumer);
-
+        channel.BasicConsume(queue, autoAck: true, consumer: consumer);
         return Task.CompletedTask;
-    }
-
-    public override void Dispose()
-    {
-        _channel?.Dispose();
-        _connection?.Dispose();
-        base.Dispose();
     }
 }
