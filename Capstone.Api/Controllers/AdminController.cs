@@ -16,27 +16,27 @@ public class AdminController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CommunicationTypeDto>> CreateCommunicationType([FromBody] CommunicationTypeDto communicationTypeDto)
     {
-        if (communicationTypeDto.TypeCode == "" || !communicationTypeDto.CommunicationTypeStatuses.Any())
+        if (string.IsNullOrWhiteSpace(communicationTypeDto.TypeCode) || !communicationTypeDto.CommunicationTypeStatuses.Any())
         {
             return BadRequest("Invalid communication type data.");
         }
         var communicationType = await _adminService.CreateCommunicationType(communicationTypeDto);
-        return NoContent();
+        return Ok(communicationType);
     }
 
     [Authorize(Roles = "Admin")]
     [HttpPost("{typeCode}")]
     public async Task<IActionResult> UpdateCommunicationType(string typeCode, [FromBody] CommunicationTypeDto communicationTypeDto)
     {
-        if (communicationTypeDto.TypeCode == "" || !communicationTypeDto.CommunicationTypeStatuses.Any())
+        if (string.IsNullOrWhiteSpace(communicationTypeDto.TypeCode) || !communicationTypeDto.CommunicationTypeStatuses.Any())
         {
             return BadRequest("Invalid communication type data.");
         }
         var updated = await _adminService.UpdateCommunicationType(typeCode, communicationTypeDto);
         if (!updated)
         {
-            return BadRequest("Invalid type update or type not found.");
+            return NotFound("Type not found.");
         }
-        return NoContent();
+        return Ok();
     }
 }
