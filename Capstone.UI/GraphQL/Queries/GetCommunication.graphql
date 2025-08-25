@@ -1,0 +1,13 @@
+query GetCommunications {
+  communications {
+    edges {
+      node {
+        id
+        title
+        typeCode
+        currentStatus
+        lastUpdatedUtc
+      }
+    }
+  }
+}

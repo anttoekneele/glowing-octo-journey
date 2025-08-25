@@ -5,7 +5,6 @@ using RabbitMQ.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Define the CORS policy
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", policy =>
@@ -21,11 +20,17 @@ builder.Services.AddCors(options =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("AppDbContext")));
+builder.Services.AddHttpClient<IUserService, UserService>(client =>
+{
+    client.BaseAddress = new Uri("http://localhost:5044/");
+});
+builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddControllers();
-builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
-builder.Services.AddHostedService<LifecycleEventConsumer>();
+
+
 builder.Services.AddSingleton<IConnection>(sp =>
 {
     var factory = new ConnectionFactory
@@ -37,11 +42,20 @@ builder.Services.AddSingleton<IConnection>(sp =>
     };
     return factory.CreateConnection();
 });
-builder.Services.AddHttpClient<IUserService, UserService>(client =>
-{
-    client.BaseAddress = new Uri("http://localhost:5044/");
-});
-builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
+builder.Services.AddHostedService<LifecycleEventConsumer>();
+
+
+builder.Services
+    .AddGraphQLServer()
+    // .AddAuthorization()
+    .AddQueryType<Query>()
+    .AddMutationType<Mutation>()
+    .AddProjections()
+    .AddFiltering()
+    .AddSorting();
+
+
 builder.Services.AddAuthentication()
     .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
@@ -57,9 +71,9 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Apply CORS policy globally
 app.UseCors("CorsPolicy");
 app.MapControllers();
+app.MapGraphQL("/graphql");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

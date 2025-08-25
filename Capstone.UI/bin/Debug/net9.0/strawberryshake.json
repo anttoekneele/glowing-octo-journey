@@ -1,0 +1,8 @@
+{
+  "schema": "schema.graphql",
+  "documents": "./GraphQL/**/*.graphql",
+  "namespace": "Capstone.UI.GraphQLNS",
+  "name": "CapstoneGraphQLClient",
+  "url": "https://localhost:5044/graphql",
+  "output": "Generated"
+}

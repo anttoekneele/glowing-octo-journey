@@ -59,6 +59,14 @@
             "Okta.AspNetCore": {
               "target": "Package",
               "version": "[4.6.5, )"
+            },
+            "StrawberryShake": {
+              "target": "Package",
+              "version": "[15.1.8, )"
+            },
+            "StrawberryShake.Transport.Http": {
+              "target": "Package",
+              "version": "[15.1.8, )"
             }
           },
           "imports": [
